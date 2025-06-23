@@ -24,13 +24,12 @@ def setup_browser():
     return driver
 
 
-def fetch_new_cryptos(limit=10):
+def fetch_new_cryptos(limit=3):
     url = "https://www.coingecko.com/ru/new-cryptocurrencies"
     print(f"🌐 Загрузка главной страницы: {url}")
 
     driver = setup_browser()
     driver.get(url)
-
     time.sleep(5)  # Ждём загрузки JS
     html = driver.page_source
     driver.quit()
@@ -40,8 +39,14 @@ def fetch_new_cryptos(limit=10):
 
     soup = BeautifulSoup(html, 'html.parser')
 
+    # Ищем таблицу с новыми монетами
+    table = soup.find('table', {'class': lambda c: c and 'tw-border-y' in c and 'tw-border-gray-200' in c and 'dark:tw-border-moon-700' in c and 'tw-divide-y' in c and 'tw-divide-gray-200' in c and 'dark:tw-divide-moon-700' in c and '[&>tbody:first-of-type]:!tw-border-t-0' in c and 'tw-w-full' in c and 'sortable' in c})
+    if not table:
+        print("❌ Не найдена таблица с новыми монетами")
+        return []
+
     # Ищем все строки с нужным классом
-    rows = soup.find_all('tr', {'class': lambda c: c and 'hover:tw-bg' in c})
+    rows = table.find_all('tr', {'class': lambda c: c and 'hover:tw-bg' in c})
 
     if not rows:
         print("❌ Не найдены строки с новыми монетами")
@@ -53,38 +58,39 @@ def fetch_new_cryptos(limit=10):
     for row in rows:
         cols = row.find_all('td')
         if len(cols) < 10:
+            print(f"⚠️ Строка пропущена — недостаточно колонок: {len(cols)}")
             continue
 
         name_tag = cols[2].find('a')
-        name = name_tag.get_text(strip=True) if name_tag else None
-        chain = cols[5].get_text(strip=True) if len(cols) > 5 else None
-        fdv = cols[9].get_text(strip=True) if len(cols) > 9 else None
-        added = cols[10].get_text(strip=True) if len(cols) > 10 else None
+        name = name_tag.get_text(strip=True) if name_tag else "Без имени"
 
+        chain = cols[5].get_text(strip=True) if len(cols) > 5 else "–"
 
+        fdv = cols[9].get_text(strip=True) if len(cols) > 9 else "N/A"
 
-
+        added = cols[10].get_text(strip=True) if len(cols) > 10 else "–"
 
         cryptos.append({
             'name': name,
             'chain': chain,
             'fdv': fdv,
-            'added': added,
+            'added': added
         })
 
-        print(f"✅ Найдена монета: {name}")
+        print(f"✅ Найдена монета: {name} → FDV: {fdv}, Добавлен: {added}")
         count += 1
 
         if count >= limit:
             break
 
-    save_crypto_data_to_csv(cryptos)
-    save_coin_names_to_file(cryptos)
+        time.sleep(2)
 
+    save_crypto_data_to_csv(cryptos)
     return cryptos
 
 
-def save_crypto_data_to_csv(data, filename="new_cryptocurrencies.csv"):
+def save_crypto_data_to_csv(data, filename="new_cryptocurrencies_full.csv"):
+    """Сохраняет все данные о монетах в CSV"""
     fieldnames = ['name', 'chain', 'fdv', 'added']
 
     try:
@@ -92,32 +98,14 @@ def save_crypto_data_to_csv(data, filename="new_cryptocurrencies.csv"):
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(data)
-        print(f"\n✅ Данные сохранены в {os.path.abspath(filename)}")
+        print(f"\n✅ Полные данные сохранены в {os.path.abspath(filename)}")
     except Exception as e:
         print(f"❌ Ошибка при сохранении full CSV: {e}")
 
 
-def save_coin_names_to_file(data, filename="newcoin.csv"):
-    if not data:
-        print("❌ Нет данных для сохранения в newcoin.csv")
-        return []
-
-    fieldnames = ['name', 'fdv', 'added']
-
-    try:
-        with open(filename, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for crypto in data:
-                writer.writerow({'name': crypto['name'], 'fdv': crypto['fdv']})
-        print(f"✅ Список монет сохранён в {os.path.abspath(filename)}")
-    except Exception as e:
-        print(f"❌ Ошибка при сохранении newcoin.csv: {e}")
-
-
 if __name__ == "__main__":
     print("🔄 Запуск парсера новых криптовалют...\n")
-    new_cryptos = fetch_new_cryptos(limit=10)
+    new_cryptos = fetch_new_cryptos(limit=3)
 
     if new_cryptos:
         print(f"\n📊 Найдено монет: {len(new_cryptos)}")
