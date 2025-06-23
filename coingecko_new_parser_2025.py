@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import csv
 import time
 import os
+from datetime import datetime, timedelta
 
 # Заголовки (для имитации браузера)
 HEADERS = {
@@ -22,6 +23,27 @@ def setup_browser():
 
     driver = webdriver.Chrome(options=options)
     return driver
+
+
+def parse_added_date(added_text):
+    """Преобразует относительные временные метки в формат ГГГГ-ММ-ДД"""
+    now = datetime.now()
+    if "около 1 часа" in added_text:
+        added_date = now - timedelta(hours=1)
+    elif "около 1 дня" in added_text:
+        added_date = now - timedelta(days=1)
+    elif "около 2 дней" in added_text:
+        added_date = now - timedelta(days=2)
+    elif "недавно" in added_text:
+        added_date = now - timedelta(minutes=30)
+    else:
+        # Попытка парсинга стандартной даты
+        try:
+            added_date = datetime.strptime(added_text, '%Y-%m-%d')
+        except ValueError:
+            added_date = now - timedelta(hours=1)  # По умолчанию — около 1 часа назад
+
+    return added_date.strftime('%Y-%m-%d')
 
 
 def fetch_new_cryptos(limit=3):
@@ -68,16 +90,17 @@ def fetch_new_cryptos(limit=3):
 
         fdv = cols[9].get_text(strip=True) if len(cols) > 9 else "N/A"
 
-        added = cols[10].get_text(strip=True) if len(cols) > 10 else "–"
+        added_text = cols[10].get_text(strip=True) if len(cols) > 10 else "–"
+        added_date = parse_added_date(added_text)
 
         cryptos.append({
             'name': name,
             'chain': chain,
             'fdv': fdv,
-            'added': added
+            'added': added_date
         })
 
-        print(f"✅ Найдена монета: {name} → FDV: {fdv}, Добавлен: {added}")
+        print(f"✅ Найдена монета: {name} → FDV: {fdv}, Добавлен: {added_date}")
         count += 1
 
         if count >= limit:
