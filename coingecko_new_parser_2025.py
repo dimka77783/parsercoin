@@ -52,27 +52,27 @@ def fetch_new_cryptos(limit=10):
 
     for row in rows:
         cols = row.find_all('td')
-        if len(cols) < 6:
+        if len(cols) < 10:
             continue
 
         name_tag = cols[2].find('a')
         name = name_tag.get_text(strip=True) if name_tag else None
+        chain = cols[5].get_text(strip=True) if len(cols) > 5 else None
+        fdv = cols[9].get_text(strip=True) if len(cols) > 9 else None
+        added = cols[10].get_text(strip=True) if len(cols) > 10 else None
 
-        symbol = cols[3].get_text(strip=True).lower() if len(cols) > 3 else None
 
-        added = cols[5].get_text(strip=True) if len(cols) > 5 else None
 
-        link_tag = cols[2].find('a', href=True)
-        coin_page_url = BASE_URL + link_tag['href'].replace('/ru/', '/', 1).replace('//', '/') if link_tag else None
+
 
         cryptos.append({
             'name': name,
-            'symbol': symbol,
+            'chain': chain,
+            'fdv': fdv,
             'added': added,
-            'url': coin_page_url
         })
 
-        print(f"✅ Найдена монета: {name} ({symbol})")
+        print(f"✅ Найдена монета: {name}")
         count += 1
 
         if count >= limit:
@@ -85,7 +85,7 @@ def fetch_new_cryptos(limit=10):
 
 
 def save_crypto_data_to_csv(data, filename="new_cryptocurrencies.csv"):
-    fieldnames = ['name', 'symbol', 'added', 'url']
+    fieldnames = ['name', 'chain', 'fdv', 'added']
 
     try:
         with open(filename, mode='w', newline='', encoding='utf-8') as f:
@@ -102,14 +102,14 @@ def save_coin_names_to_file(data, filename="newcoin.csv"):
         print("❌ Нет данных для сохранения в newcoin.csv")
         return []
 
-    fieldnames = ['name', 'symbol']
+    fieldnames = ['name', 'fdv', 'added']
 
     try:
         with open(filename, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for crypto in data:
-                writer.writerow({'name': crypto['name'], 'symbol': crypto['symbol']})
+                writer.writerow({'name': crypto['name'], 'fdv': crypto['fdv']})
         print(f"✅ Список монет сохранён в {os.path.abspath(filename)}")
     except Exception as e:
         print(f"❌ Ошибка при сохранении newcoin.csv: {e}")
