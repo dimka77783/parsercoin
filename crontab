@@ -1,0 +1,6 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Наши задания
+*/10 * * * *  root /usr/local/bin/python /app/parser.py >> /var/log/parser.log 2>&1
+* * * * * root echo "Cron job running at $(date)" >> /app/logs/cron.log 2>&1
