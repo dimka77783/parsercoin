@@ -1,28 +1,53 @@
 services:
-  db:
-    image: postgres:latest
+  postgres:
+    image: postgres:15-alpine
+    container_name: crypto_postgres
     environment:
-      POSTGRES_DB: coingecko_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: crypto_db
+      POSTGRES_USER: crypto_user
+      POSTGRES_PASSWORD: crypto_password
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
+    networks:
+      - crypto_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crypto_user -d crypto_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   parser:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.alternative
+      args:
+        - HTTP_PROXY=${HTTP_PROXY}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+        - NO_PROXY=${NO_PROXY}
+    container_name: crypto_parser
     depends_on:
-      - db
+      postgres:
+        condition: service_healthy
     environment:
-      DB_HOST: db
-      DB_NAME: coingecko_db
-      DB_USER: user
-      DB_PASSWORD: password
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: crypto_db
+      DB_USER: crypto_user
+      DB_PASSWORD: crypto_password
     volumes:
       - ./logs:/app/logs
+      - ./parser_ohlcv_db.py:/app/parser_ohlcv.py:ro
+    networks:
+      - crypto_network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+
+networks:
+  crypto_network:
+    driver: bridge
